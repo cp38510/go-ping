@@ -1,0 +1,155 @@
+diff --git a/ping000.go b/ping000.go
+index c1111b9..13df389 100644
+--- a/ping000.go
++++ b/ping000.go
+@@ -2,11 +2,12 @@ package main
+ 
+ import (
+ 	"flag"
+-	"github.com/sparrc/go-ping"
+-	"net"
+ 	"fmt"
++	"net"
+ 	"strconv"
+-	"time"
++	"sync"
++
++	"github.com/sparrc/go-ping"
+ )
+ 
+ var usage = `
+@@ -15,6 +16,7 @@ Usage:
+ Example:
+     # pping -s 172.20.13.1 -e 172.20.13.225
+ `
++
+ //функция воркера пингует заданные IP-адреса
+ func worker(id int, jobs <-chan string, results chan<- string) {
+ 	for j := range jobs {
+@@ -40,15 +42,13 @@ func worker(id int, jobs <-chan string, results chan<- string) {
+ 			if var10 == var2 {
+ 				//	fmt.Printf("%s, %v%% packet loss, %s\n", pinger.Addr(), stats.PacketLoss, "HOST ACTIVE")
+ 				fmt.Printf("%s %s\n", pinger.Addr(), "- HOST ACTIVE")
+-			}else if var10 < var3 {
++			} else if var10 < var3 {
+ 				fmt.Printf("%s %s, %v%% packet loss\n", pinger.Addr(), "- HOST WARNING", stats.PacketLoss)
+-			}else if var10 == var3 {
++			} else if var10 == var3 {
+ 				//	fmt.Printf("%s, %v%% packet loss, %s\n", pinger.Addr(), stats.PacketLoss, "HOST DISABLED")
+ 				fmt.Printf("%s %s\n", pinger.Addr(), "- HOST DISABLED")
+ 			}
+ 
+-
+-
+ 		}
+ 
+ 		//параметры пинга
+@@ -59,8 +59,8 @@ func worker(id int, jobs <-chan string, results chan<- string) {
+ 		pinger.SetPrivileged(true)
+ 		pinger.Run()
+ 
+-//		time.Sleep(time.Second * 10)
+-		results <- j
++		//		time.Sleep(time.Second * 10)
++		// results <- j
+ 	}
+ }
+ 
+@@ -69,14 +69,12 @@ func f1() {
+ 	jobs := make(chan string)
+ 	results := make(chan string)
+ 
+-
+ 	start := flag.String("s", "8.8.8.1", "start IP")
+ 	end := flag.String("e", "8.8.8.16", "end IP")
+ 
+ 	hhelp := flag.String("h", "", "")
+ 	hhelp1 := flag.String("help", "", "")
+ 
+-
+ 	flag.Usage = func() {
+ 		fmt.Printf(usage)
+ 	}
+@@ -99,55 +97,53 @@ func f1() {
+ 	ip = ip.To4()
+ 	ip2 = ip2.To4()
+ 
+-	ips := int(ip2[3]-ip[3])
++	ips := int(ip2[3] - ip[3])
+ 
+-
+-	if ip[0] != ip2[0]{
++	if ip[0] != ip2[0] {
+ 		fmt.Printf("Error! Start and end IP's have different subnets\n")
+ 		return
+-	}else if ip[1] != ip2[1]{
++	} else if ip[1] != ip2[1] {
+ 		fmt.Printf("Error! Start and end IP's have different subnets\n")
+ 		return
+-	}else if ip[2] != ip2[2]{
++	} else if ip[2] != ip2[2] {
+ 		fmt.Printf("Error! Start and end IP's have different subnets\n")
+ 		return
+ 	}
+ 
+-//запуск воркеров
++	//запуск воркеров
++	var wg sync.WaitGroup
+ 	for w := 0; w <= ips; w++ {
+-		go worker(w, jobs, results)
+-	}
+-
+-
+-//	for j := 1; j <= 5; j++ {
++		wg.Add(1)
+ 
++		go func(w int) {
++			worker(w, jobs, results)
++			wg.Done()
++		}(w)
++	}
+ 
++	//	for j := 1; j <= 5; j++ {
+ 
+-		for i := ip[3]; i <= ip2[3]; i++ {
++	for i := ip[3]; i <= ip2[3]; i++ {
+ 
+-			test := ip[0]
+-			test1 := ip[1]
+-			test2 := ip[2]
++		test := ip[0]
++		test1 := ip[1]
++		test2 := ip[2]
+ 
+-			output := fmt.Sprintf("%d.%d.%d.%d", test, test1, test2, i)
+-			jobs <- output
+-		}
++		output := fmt.Sprintf("%d.%d.%d.%d", test, test1, test2, i)
++		jobs <- output
++	}
+ 
+-//	}
++	//	}
+ 
+ 	close(jobs)
++	wg.Wait()
+ 
+-
+-//	for a := 1; a <= 5; a++ {
+-//		<-results
+-//	}
++	//	for a := 1; a <= 5; a++ {
++	//		<-results
++	//	}
+ 
+ }
+ 
+-func main(){
+-
+-	go f1()
+-	time.Sleep(time.Second * 12)
+-	return
+-
++func main() {
++	f1()
+ }
